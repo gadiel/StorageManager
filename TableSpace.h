@@ -5,7 +5,7 @@
 #define defaultBlockSize 4096
 #define DatabaseEngineVersion 1
 #define defaultBlockCount 256
-#define defaultTableSpaceFileName "tablespace.db"
+#define defaultTableSpaceFileName "tablespace.bin"
 
 
 

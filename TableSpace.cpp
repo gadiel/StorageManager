@@ -13,7 +13,11 @@
 
 	char * TableSpace::GetData(long positionInFile, long sizeToRead)
 	{
-		return NULL;
+        char buffer[sizeToRead];
+        tableSpaceFile.seekp(positionInFile,std::ios::beg);
+        tableSpaceFile.read(buffer,sizeToRead);
+
+        return buffer;
 	}
 
 	void TableSpace::CreateDatabaseFile(char * fileName)
@@ -34,18 +38,22 @@
 		tableSpaceFile.open(defaultTableSpaceFileName,openmode);
 	}
 
-	void TableSpace::CreateSystemBlock(char DatabaseName[256])
+    void TableSpace::CreateSystemBlock(char DatabaseName[64])
 	{
 		SystemBlock sBlock;
         strcpy(sBlock.DatabaseName, DatabaseName);
 		sBlock.FirstEmptyBlockId = 1;
+        sBlock.FirstMetadataBlockId = 0;
 		sBlock.Version = DatabaseEngineVersion;
 		
-        AllocateBlock(0, (char*)&sBlock);
+        char charBlock[sizeof(SystemBlock)];
+        memcpy(charBlock, &sBlock, sizeof(SystemBlock));
+
+        AllocateBlock(0, charBlock);
 	}
 
     char* TableSpace::GetSystemBlock(){
-        InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
+        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
 
         char buffer[sizeof(SystemBlock)];
         tableSpaceFile.seekp(0,std::ios::beg);
@@ -72,14 +80,15 @@
 	void TableSpace::AllocateBlock(long dir, char * blockData)
 	{
         //VerifyTableSpaceFile();
-		InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
+        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
 		tableSpaceFile.seekp(dir,std::ios::beg);		
         tableSpaceFile.write(blockData,defaultBlockSize);
+        tableSpaceFile.flush();
 	}
 
 	void TableSpace::CreateTableSpace(char DatabaseName[256])
 	{
-		InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
+        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
 		CreateSystemBlock(DatabaseName);
 
 		GeneralBlock generalBlock;
@@ -89,15 +98,32 @@
 		for(int i=1;i<defaultBlockCount;i++)
 		{
 			generalBlock.BlockId = i;
+            generalBlock.PreviousBlockId = i-1;
 			generalBlock.NextBlockId = i+1;
 
-            AllocateBlock(i*defaultBlockSize,(char*)&generalBlock);
-		}
+            char charBlock[sizeof(GeneralBlock)];
+            memcpy(charBlock, &generalBlock, sizeof(GeneralBlock));
 
-		CloseDatabaseFile();
+
+            AllocateBlock(i*defaultBlockSize, charBlock);
+		}
+        tableSpaceFile.flush();
+        //CloseDatabaseFile();
 	}
 	
 	void TableSpace::CloseDatabaseFile()
 	{
 		tableSpaceFile.close();
 	}
+
+    long TableSpace::getNextFreeBlock()
+    {
+        char* systemC=tbspace.GetSystemBlock();
+
+        SystemBlock system;
+        memcpy(&system, systemC, sizeof(SystemBlock));
+        return system.FirstEmptyBlockId();
+    }
+
+
+

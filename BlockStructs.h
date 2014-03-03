@@ -21,10 +21,10 @@ struct GeneralBlock
 
 struct SystemBlock
 {
-	char DatabaseName[256];
+    char DatabaseName[64];
 	unsigned int Version;
-	char UserName[50];
-	char Password[50];
+    /*char UserName[50];
+    char Password[50];*/
 	unsigned long FirstEmptyBlockId;
 	unsigned long FirstMetadataBlockId;
 };
