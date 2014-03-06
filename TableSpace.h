@@ -5,7 +5,7 @@
 #define defaultBlockSize 4096
 #define DatabaseEngineVersion 1
 #define defaultBlockCount 256
-#define defaultTableSpaceFileName "tablespace.bin"
+#define defaultTableSpaceFileName "tablespace.db"
 
 
 
@@ -16,6 +16,9 @@
 		void CreateTableSpace(char DatabaseName[256]);
         bool UpdateSystemBlock(char* newSystemBlock);
         char* GetSystemBlock();
+        char* GetTableMetadataHeader(long blockId);
+        char* GetTableMetadataBlock(long blockId);
+        bool UpdateMetadataField(long blockId, long fieldId,char* newMetadataField);
 		TableSpace();
 		~TableSpace();
 	private:
@@ -28,4 +31,4 @@
 		void InitializeDatabaseFile(std::ios_base::openmode openmode);
 		void AllocateBlock(long dir, char * blockData);
 
-	};
+    };

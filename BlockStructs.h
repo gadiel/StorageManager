@@ -1,4 +1,5 @@
 #include "stdafx.h"
+
 enum BlockTypes
 {
 	Blank, Data, TableMetadata, TableMetadataExtension, VariableData
@@ -10,7 +11,7 @@ struct DataBlock
 	unsigned int FreeSpace;
 };
 
-struct GeneralBlock
+struct GeneralHeader
 {
 	unsigned long BlockId;
     BlockTypes BlockType;
@@ -21,18 +22,20 @@ struct GeneralBlock
 
 struct SystemBlock
 {
-    char DatabaseName[64];
+	char DatabaseName[256];
 	unsigned int Version;
-    /*char UserName[50];
-    char Password[50];*/
+	char UserName[50];
+	char Password[50];
 	unsigned long FirstEmptyBlockId;
 	unsigned long FirstMetadataBlockId;
 };
 
-struct TableMetadataBlock
+struct TableMetadataHeader
 {
-	char TableName[256];
-	unsigned int FieldCount;
+	char TableName[256];	
+    unsigned int LogicalColumnsCount;
+    unsigned long PhysicalColumnsCount;
+    unsigned long Identity;
 	unsigned long MetadataExtensionBlockId;
 	unsigned int FreeSpace;
 };
@@ -40,7 +43,8 @@ struct TableMetadataBlock
 struct TableMetadataExtBlock
 {
 	char TableName[256];
-	unsigned int FieldCount;
+    unsigned int LogicalColumnsCount;
+    unsigned long PhysicalColumnsCount;
 	unsigned long ParentMetadataBlockId;
 	unsigned int FreeSpace;
 };
@@ -49,6 +53,26 @@ struct VariableData
 {
 
 };
+
+struct MetadataField
+{
+    char FieldName [20];
+    DataType FieldType;
+    int Precision;
+    int Scale;
+    bool IsPrimaryKey;
+    bool IsIdentity;
+    bool IsDeleted;
+    bool IsNull;
+    char DefaultValue[256];
+};
+
+struct MetadataExtension
+{
+    MetadataField Fields[];
+};
+
+
 
 
 

@@ -9,5 +9,5 @@
 #include <tchar.h>
 #include <string.h>
 #include <string>
-
+#include "OtherStructs.h"
 // TODO: mencionar aquí los encabezados adicionales que el programa necesita

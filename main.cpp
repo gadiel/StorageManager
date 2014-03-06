@@ -7,9 +7,9 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-
+    
     TableSpace tbspace;
-    tbspace.CreateTableSpace("prueba1");
+    //tbspace.CreateTableSpace("prueba1");
 
     char* systemC=tbspace.GetSystemBlock();
 
