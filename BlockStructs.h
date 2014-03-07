@@ -26,7 +26,7 @@ struct SystemBlock
     /*char UserName[50];
     char Password[50];*/
 	unsigned long FirstEmptyBlockId;
-	unsigned long FirstMetadataBlockId;
+    unsigned long FirstTableMetadataBlockId;
 };
 
 struct TableMetadataBlock
