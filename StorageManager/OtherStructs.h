@@ -1,4 +1,0 @@
-enum DataType
-{
-	INT, DECIMAL, CHAR, VARCHAR, BOOLEAN
-};
