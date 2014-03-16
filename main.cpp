@@ -11,6 +11,12 @@ int main(int argc, char *argv[])
     TableSpace tbspace;
     tbspace.CreateTableSpace("prueba1");
 
+    TableMetadataHeader tbmdHeader;
+
+    tbmdHeader.LogicalColumnsCount = 6;
+
+    tbspace.CreateNewTable(tbmdHeader);
+
     char* systemC=tbspace.GetSystemBlock();
 
     SystemBlock system;

@@ -6,7 +6,7 @@
 		InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
 	}
 
-	TableSpace::~TableSpace()
+    TableSpace::~TableSpace()
 	{
 
 	}
@@ -53,8 +53,6 @@
 	}
 
     char* TableSpace::GetSystemBlock(){
-        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
-
         char buffer[sizeof(SystemBlock)];
         tableSpaceFile.seekg(0,std::ios::beg);
         tableSpaceFile.read(buffer,sizeof(SystemBlock));
@@ -62,10 +60,9 @@
         return buffer;
     }
 
-    bool TableSpace::UpdateSystemBlock(char* newSystemBlock){
-
+    bool TableSpace::UpdateSystemBlock(char* newSystemBlock)
+    {
         writeData(0,newSystemBlock,sizeof(SystemBlock));
-        //CloseDatabaseFile();
         return true;
     }
 
@@ -79,19 +76,16 @@
 
     void TableSpace::WriteBlock(long dir, char * blockData)
 	{
-        //VerifyTableSpaceFile();
-        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
-		tableSpaceFile.seekp(dir,std::ios::beg);		
+        tableSpaceFile.seekp(dir,std::ios::beg);
         tableSpaceFile.write(blockData,defaultBlockSize);
         tableSpaceFile.flush();
 	}
 
 	void TableSpace::CreateTableSpace(char DatabaseName[256])
 	{
-        //InitializeDatabaseFile(std::ios::in|std::ios::out|std::ios::binary);
-		CreateSystemBlock(DatabaseName);
+        CreateSystemBlock(DatabaseName);
 
-		GeneralBlock generalBlock;
+        GeneralHeader generalBlock;
 		generalBlock.BlockType = Blank;
 		generalBlock.TombStone = false;
 
@@ -101,13 +95,12 @@
             generalBlock.PreviousBlockId = i-1;
 			generalBlock.NextBlockId = i+1;
 
-            char charBlock[sizeof(GeneralBlock)];
-            memcpy(charBlock, &generalBlock, sizeof(GeneralBlock));
+            char charBlock[sizeof(GeneralHeader)];
+            memcpy(charBlock, &generalBlock, sizeof(GeneralHeader));
 
-            writeData(i*defaultBlockSize, charBlock, sizeof(GeneralBlock));
+            writeData(i*defaultBlockSize, charBlock, sizeof(GeneralHeader));
 		}
         tableSpaceFile.flush();
-        //CloseDatabaseFile();
 	}
 	
 	void TableSpace::CloseDatabaseFile()
@@ -131,26 +124,76 @@
         SystemBlock sysBlock;
         memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
 
-         long emptyBlockID = sysBlock.FirstEmptyBlockId;
+        long emptyBlockID = sysBlock.FirstEmptyBlockId;
+        char * rawGenBlock = GetGeneralHeaderData(emptyBlockID);
+
+        GeneralHeader generalBlock;
+        memcpy(&generalBlock, rawGenBlock, sizeof(GeneralHeader));
 
         sysBlock.FirstEmptyBlockId = generalBlock.NextBlockId;
         memcpy(rawSysBlock, &sysBlock, sizeof(SystemBlock));
+
         UpdateSystemBlock(rawSysBlock);
 
         return emptyBlockID;
     }
 
-    char * TableSpace::GetGeneralBlockData( long blockId)
+    long TableSpace::addNewBlock(long id)
     {
-        char buffer[sizeof(GeneralBlock)];
-        tableSpaceFile.seekg(blockId*defaultBlockSize,std::ios::beg);
-        tableSpaceFile.read(buffer,sizeof(GeneralBlock));
-        return buffer;
+        char * rawSysBlock = GetSystemBlock();
+        SystemBlock sysBlock;
+        memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
+        GeneralHeader generalBlock;
+        generalBlock.TombStone = false;
+        generalBlock.BlockType = Blank;
+        generalBlock.BlockId = sysBlock.PhysicalBlockCount+1;
+        generalBlock.PreviousBlockId = sysBlock.LastEmptyBlockId;
+
+        sysBlock.PhysicalBlockCount+=1;
+        memcpy(rawSysBlock, &sysBlock, sizeof(SystemBlock));
+        char charBlock[sizeof(GeneralHeader)];
+        memcpy(charBlock, &generalBlock, sizeof(GeneralHeader));
+
+        writeData(generalBlock.BlockId*defaultBlockSize, charBlock, sizeof(GeneralHeader));
+        writeData(0, rawSysBlock, sizeof(SystemBlock));
     }
 
-    long TableSpace::writeTableMetadata( long blockID,char * tableMetadata)
+    long TableSpace::addNewBlock()
     {
+        char * rawSysBlock = GetSystemBlock();
+        SystemBlock sysBlock;
+        memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
+        GeneralHeader generalBlock;
+        generalBlock.NextBlockId = NULL;
+        generalBlock.TombStone = false;
+        generalBlock.BlockType = Blank;
+        generalBlock.BlockId = sysBlock.PhysicalBlockCount+1;
+        generalBlock.PreviousBlockId = sysBlock.LastEmptyBlockId;
 
+        GeneralHeader lastBlock;
+        char * rawLastBlock = GetGeneralHeaderData(sysBlock.LastEmptyBlockId);
+        memcpy(&lastBlock, rawLastBlock, sizeof(GeneralHeader));
+        lastBlock.NextBlockId = generalBlock.BlockId;
+
+        memcpy(rawSysBlock, &sysBlock, sizeof(SystemBlock));
+        char charBlock[sizeof(GeneralHeader)];
+        memcpy(charBlock, &generalBlock, sizeof(GeneralHeader));
+        memcpy(rawLastBlock, &lastBlock, sizeof(GeneralHeader));
+
+        sysBlock.PhysicalBlockCount+=1;
+        sysBlock.LastEmptyBlockId = generalBlock.BlockId;
+
+        writeData(lastBlock.BlockId*defaultBlockSize,rawLastBlock,sizeof(GeneralHeader));
+        writeData(generalBlock.BlockId*defaultBlockSize,charBlock, sizeof(GeneralHeader));
+        writeData(0, rawSysBlock, sizeof(SystemBlock));
+    }
+
+    char * TableSpace::GetGeneralHeaderData(long blockId)
+    {
+        char buffer[sizeof(GeneralHeader)];
+        tableSpaceFile.seekg(blockId*defaultBlockSize,std::ios::beg);
+        tableSpaceFile.read(buffer,sizeof(GeneralHeader));
+        return buffer;
     }
 
     void TableSpace::writeData(long dir, char * data, int size)
@@ -160,61 +203,50 @@
         tableSpaceFile.flush();
     }
 
-    long TableSpace::getLastTableMetadataBlockId(long firstMDId)
+    long TableSpace::getLastTableMetadataBlockId(long BlockID)
     {
-        char * rawPreviousGenBlock = GetGeneralBlockData(firstMDId);
-        GeneralBlock genBlock;
-        memcpy(&genBlock, rawPreviousGenBlock, sizeof(GeneralBlock));
+        if(BlockID==0)
+        {
+            return 0;
+        }
+
+        char * rawPreviousGenBlock = GetGeneralHeaderData(BlockID);
+        GeneralHeader genBlock;
+        memcpy(&genBlock, rawPreviousGenBlock, sizeof(GeneralHeader));
         if(genBlock.BlockType!=TableMetadata)
         {
             return NULL;
         }
 
-        long lastMDblockId = genBlock.FirstTableMetadataBlockId;
-
-        while(genBlock.NextBlockId !=0)
+        if(genBlock.NextBlockId==0)
         {
-            lastMDblockId = genBlock.BlockId;
-            rawPreviousGenBlock = GetGeneralBlockData(genBlock.NextBlockId);
-            memcpy(&genBlock, rawPreviousGenBlock, sizeof(GeneralBlock));
-
-            if(genBlock.BlockType!=TableMetadata)
-            {
-                return NULL;
-            }
+            return BlockID;
         }
-        return lastMDblockId;
 
+        return getLastTableMetadataBlockId(genBlock.NextBlockId);
     }
 
-
-    long TableSpace::CreateNewTable(TableMetadataBlock tableMetadata)
+    long TableSpace::CreateNewTable(TableMetadataHeader tableMetadata)
     {
         char * rawSysBlock = GetSystemBlock();
         SystemBlock sysBlock;
         memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
 
         long emptyBlockID = getNextFreeBlockAndUseIt();
-        char * rawGenBlock = GetGeneralBlockData(emptyBlockID);
-        GeneralBlock generalBlock;
-        memcpy(&generalBlock, rawGenBlock, sizeof(GeneralBlock));
+        char * rawGenBlock = GetGeneralHeaderData(emptyBlockID);
+        GeneralHeader generalBlock;
+        memcpy(&generalBlock, rawGenBlock, sizeof(GeneralHeader));
+
         generalBlock.BlockType = TableMetadata;
         generalBlock.NextBlockId = 0;
+        generalBlock.PreviousBlockId = getLastTableMetadataBlockId(sysBlock.FirstTableMetadataBlockId);
 
-        if(sysBlock.FirstTableMetadataBlockId==0)
-        {
-            generalBlock.PreviousBlockId = 0;
-        }
-        else
-        {
-            char * rawPreviousGenBlock = GetGeneralBlockData(sysBlock.FirstTableMetadataBlockId);
-            GeneralBlock previousGeneralBlock;
-            memcpy(&previousGeneralBlock, rawPreviousGenBlock, sizeof(GeneralBlock));
-            previousGeneralBlock.NextBlockId = emptyBlockID;
+        memcpy(rawGenBlock,&generalBlock,sizeof(GeneralHeader));
 
-            generalBlock.PreviousBlockId =
-        }
+        writeData(emptyBlockID*defaultBlockSize,rawGenBlock,sizeof(GeneralHeader));
+        long metadataDir = emptyBlockID*defaultBlockSize+sizeof(GeneralHeader);
+        char rawMetadataBlock[sizeof(TableMetadataHeader)];
+        memcpy(rawMetadataBlock,&tableMetadata,sizeof(GeneralHeader));
+        writeData(metadataDir,rawMetadataBlock,sizeof(TableMetadataHeader));
+        return emptyBlockID;
     }
-
-
-
