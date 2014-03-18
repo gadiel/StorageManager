@@ -10,8 +10,7 @@ class TableSpace
 	{
 	public:
 		
-		void CreateTableSpace(char DatabaseName[256]);
-        bool UpdateSystemBlock(char* newSystemBlock);
+		void CreateTableSpace(char DatabaseName[256]);        
         char * GetSystemBlock();
         long getNextFreeBlock();
         long getNextFreeBlockAndUseIt();
@@ -20,6 +19,12 @@ class TableSpace
         long writeTableMetadata();
         long CreateNewTable(TableMetadataHeader tableMetadata);
         long getLastTableMetadataBlockId(long BlockID);
+
+        //Wendy
+        bool UpdateSystemBlock(char* newSystemBlock);
+        char* GetTableMetadataHeader(long blockId);
+        bool UpdateMetadataField(long blockId, long fieldId,char* newMetadataField);
+
 		TableSpace();
 		~TableSpace();
 	private:

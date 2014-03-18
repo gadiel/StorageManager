@@ -11,15 +11,6 @@
 
 	}
 
-	char * TableSpace::GetData(long positionInFile, long sizeToRead)
-	{
-        char buffer[sizeToRead];
-        tableSpaceFile.seekg(positionInFile,std::ios::beg);
-        tableSpaceFile.read(buffer,sizeToRead);
-
-        return buffer;
-	}
-
 	void TableSpace::CreateDatabaseFile(char * fileName)
 	{
 		tableSpaceFile.open(fileName,std::fstream::app);
@@ -60,13 +51,7 @@
         return buffer;
     }
 
-    bool TableSpace::UpdateSystemBlock(char* newSystemBlock)
-    {
-        writeData(0,newSystemBlock,sizeof(SystemBlock));
-        return true;
-    }
-
-	void TableSpace::VerifyTableSpaceFile()
+    void TableSpace::VerifyTableSpaceFile()
 	{
 		if(!tableSpaceFile.is_open())
 		{
@@ -238,3 +223,33 @@
         writeData(metadataDir,rawMetadataBlock,sizeof(TableMetadataHeader));
         return emptyBlockID;
     }
+
+
+    //Wendy
+    bool TableSpace::UpdateSystemBlock(char* newSystemBlock)
+    {
+        writeData(0,newSystemBlock,sizeof(SystemBlock));
+        return true;
+    }
+
+    char * TableSpace::GetData(long positionInFile, long sizeToRead)
+    {
+        char* buffer;
+        tableSpaceFile.seekg(positionInFile,std::ios::beg);
+        tableSpaceFile.read(buffer,sizeToRead);
+
+        return buffer;
+    }
+
+    char* TableSpace::GetTableMetadataHeader(long blockId){
+          int posInicial= (blockId*defaultBlockSize)+(sizeof(GeneralHeader));
+          return GetData(posInicial,sizeof(TableMetadataHeader));
+      }
+
+    bool TableSpace::UpdateMetadataField(long blockId,long fieldId, char* newMetadataField){
+
+          int offset=(blockId*defaultBlockSize)+sizeof(GeneralHeader)+sizeof(TableMetadataHeader)+(fieldId*sizeof(MetadataField));
+          writeData(offset,newMetadataField,sizeof(MetadataField));
+          return true;
+    }
+
