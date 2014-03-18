@@ -36,6 +36,7 @@ struct TableMetadataHeader
     unsigned int LogicalColumnsCount;
     unsigned long PhysicalColumnsCount;
     unsigned long Identity;
+    unsigned long NextMetadataExtensionBlockId;
     unsigned int FreeFields;
 };
 

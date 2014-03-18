@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "TableSpace.h"
+#include <iostream>
 
 	TableSpace::TableSpace()
 	{
@@ -107,22 +108,21 @@
     //Gadiel
     long TableSpace::getNextFreeBlockAndUseIt()
     {
-        char * rawSysBlock = GetSystemBlock();
-        SystemBlock sysBlock;
-        memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
+        char * rawData = GetSystemBlock();
+        SystemBlock sb;
+        memcpy(&sb, rawData, sizeof(SystemBlock));
+        long freeBlockId = sb.FirstEmptyBlockId;
 
-        long emptyBlockID = sysBlock.FirstEmptyBlockId;
-        char * rawGenBlock = GetGeneralHeaderData(emptyBlockID);
+        rawData = GetGeneralHeader(freeBlockId);
+        GeneralHeader gh;
+        memcpy(&gh, rawData, sizeof(GeneralHeader));
 
-        GeneralHeader generalBlock;
-        memcpy(&generalBlock, rawGenBlock, sizeof(GeneralHeader));
+        sb.FirstEmptyBlockId = gh.NextBlockId;
+        memcpy(rawData, &sb, sizeof(SystemBlock));
 
-        sysBlock.FirstEmptyBlockId = generalBlock.NextBlockId;
-        memcpy(rawSysBlock, &sysBlock, sizeof(SystemBlock));
+        UpdateSystemBlock(rawData);
 
-        UpdateSystemBlock(rawSysBlock);
-
-        return emptyBlockID;
+        return freeBlockId;
     }
 
     long TableSpace::addNewBlock(long id)
@@ -144,7 +144,7 @@
         generalBlock.PreviousBlockId = sysBlock.LastEmptyBlockId;
 
         GeneralHeader lastBlock;
-        char * rawLastBlock = GetGeneralHeaderData(sysBlock.LastEmptyBlockId);
+        char * rawLastBlock = GetGeneralHeader(sysBlock.LastEmptyBlockId);
         memcpy(&lastBlock, rawLastBlock, sizeof(GeneralHeader));
         lastBlock.NextBlockId = generalBlock.BlockId;
 
@@ -161,12 +161,13 @@
         writeData(0, rawSysBlock, sizeof(SystemBlock));
     }
 
-    char * TableSpace::GetGeneralHeaderData(long blockId)
+    char * TableSpace::GetGeneralHeader(long blockId)
     {
-        char buffer[sizeof(GeneralHeader)];
-        tableSpaceFile.seekg(blockId*defaultBlockSize,std::ios::beg);
-        tableSpaceFile.read(buffer,sizeof(GeneralHeader));
-        return buffer;
+        long offset=blockId*defaultBlockSize;
+        std::cout<<"fuck you";
+        char * rawData= GetData(offset,sizeof(GeneralHeader));
+        std::cout<<"shit";
+        return rawData;
     }
 
     void TableSpace::writeData(long dir, char * data, int size)
@@ -176,70 +177,35 @@
         tableSpaceFile.flush();
     }
 
-    long TableSpace::getLastTableMetadataBlockId(long BlockID)
+    long TableSpace::getLastTableMetadataBlockId()
     {
-        if(BlockID==0)
-        {
-            return 0;
-        }
-
-        char * rawPreviousGenBlock = GetGeneralHeaderData(BlockID);
-        GeneralHeader genBlock;
-        memcpy(&genBlock, rawPreviousGenBlock, sizeof(GeneralHeader));
-        if(genBlock.BlockType!=TableMetadata)
-        {
-            return 0;
-        }
-
-        if(genBlock.NextBlockId==0)
-        {
-            return BlockID;
-        }
-
-        return getLastTableMetadataBlockId(genBlock.NextBlockId);
-    }
-
-    long TableSpace::CreateNewTable(TableMetadataHeader tableMetadata)
-    {
-        char * rawSysBlock = GetSystemBlock();
-        SystemBlock sysBlock;
-        memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
-
-        long emptyBlockID = getNextFreeBlockAndUseIt();
-        char * rawGenBlock = GetGeneralHeaderData(emptyBlockID);
-        GeneralHeader generalBlock;
-        memcpy(&generalBlock, rawGenBlock, sizeof(GeneralHeader));
-
-        generalBlock.BlockType = TableMetadata;
-        generalBlock.NextBlockId = 0;
-        generalBlock.PreviousBlockId = getLastTableMetadataBlockId(sysBlock.FirstTableMetadataBlockId);
-
-        memcpy(rawGenBlock,&generalBlock,sizeof(GeneralHeader));
-
-        writeData(emptyBlockID*defaultBlockSize,rawGenBlock,sizeof(GeneralHeader));
-        long metadataDir = emptyBlockID*defaultBlockSize+sizeof(GeneralHeader);
-        char rawMetadataBlock[sizeof(TableMetadataHeader)];
-        memcpy(rawMetadataBlock,&tableMetadata,sizeof(GeneralHeader));
-        writeData(metadataDir,rawMetadataBlock,sizeof(TableMetadataHeader));
-        return emptyBlockID;
+        return 0;
     }
 
     //Alex
     long TableSpace::CreateMetadataTable(char name[256]){
 
         long id= getNextFreeBlockAndUseIt();
+        printf("Id: %d",id);
         long lastId = getLastTableMetadataBlockId();
+        printf("Last Id: %d",lastId);
 
         char * rawData= GetGeneralHeader(id);
+        std::cout << "Crashea aqui";
         GeneralHeader newBlockGeneralHeader;
+        std::cout << "Crashea aqui";
         memcpy(&newBlockGeneralHeader,rawData,sizeof(GeneralHeader));
+        std::cout << "Crashea aqui";
         newBlockGeneralHeader.BlockType= TableMetadata;
+        std::cout << "Crashea aqui";
         newBlockGeneralHeader.PreviousBlockId=lastId;
+        std::cout << "Crashea aqui";
 
         rawData= GetGeneralHeader(lastId);
         GeneralHeader lastBlockGeneralHeader;
         memcpy(&lastBlockGeneralHeader,rawData,sizeof(GeneralHeader));
         lastBlockGeneralHeader.NextBlockId=id;
+        std::cout << "Crashea aqui";
 
         TableMetadataHeader newBlockMetadataHeader= TableMetadataHeader();
         strcpy(newBlockMetadataHeader.TableName,name);
@@ -248,11 +214,12 @@
         newBlockMetadataHeader.PhysicalColumnsCount=0;
         newBlockMetadataHeader.NextMetadataExtensionBlockId=0;
         newBlockMetadataHeader.Identity=0;
-
+        std::cout << "Crashea aqui";
 
         UpdateGeneralHeader(id,newBlockGeneralHeader);
-        CreateTableMetadataHeader(id,newBlockMetadataHeader);
+        CreateMetadataTableHeader(id,newBlockMetadataHeader);
         UpdateGeneralHeader(lastId,lastBlockGeneralHeader);
+        std::cout << "Crashea aqui";
 
         return id;
     }
@@ -311,7 +278,7 @@
 
     char * TableSpace::GetData(long positionInFile, long sizeToRead)
     {
-        char* buffer;
+        char buffer[sizeToRead];
         tableSpaceFile.seekg(positionInFile,std::ios::beg);
         tableSpaceFile.read(buffer,sizeToRead);
 
