@@ -36,7 +36,7 @@ class TableSpace
 		std::fstream tableSpaceFile;
 		char * GetData(long positionInFile, long sizeToRead);
 		void CreateDatabaseFile(char * fileName);
-        char * GetGeneralHeaderData(long blockId);
+        char * GetGeneralHeader(long blockId);
 		void VerifyTableSpaceFile();
 		void CloseDatabaseFile();
 		void CreateSystemBlock(char DatabaseName[256]);
