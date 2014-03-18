@@ -1,12 +1,13 @@
-#include <QtCore/QCoreApplication>
 #include "TableSpace.h"
 #include "stdafx.h"
+#include <iostream>
 
 using namespace std;
 
-int main(int argc, char *argv[])
+using namespace std;
+
+int main()
 {
-    QCoreApplication a(argc, argv);
 
     TableSpace tbspace;
     tbspace.CreateTableSpace("prueba1");
@@ -30,7 +31,7 @@ int main(int argc, char *argv[])
     for(int x=0; x<5 ; x++){
         char tableName[]={'a','l','u','m','n','o','s',numbers[x]};
 
-        long lastId= tbspace.CreateTable(tableName);
+        long lastId= tbspace.CreateMetadataTable(tableName);
 
         TableMetadataHeader header;
         char * rawData= tbspace.GetTableMetadataHeader(lastId);
@@ -39,5 +40,5 @@ int main(int argc, char *argv[])
         printf("Last table created: %d \n", lastId);
     }
 
-    return a.exec();
+    return 0;
 }
