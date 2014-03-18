@@ -118,6 +118,8 @@
         return system.FirstEmptyBlockId;
     }
 
+
+    //Gadiel
     long TableSpace::getNextFreeBlockAndUseIt()
     {
         char * rawSysBlock = GetSystemBlock();
@@ -140,24 +142,10 @@
 
     long TableSpace::addNewBlock(long id)
     {
-        char * rawSysBlock = GetSystemBlock();
-        SystemBlock sysBlock;
-        memcpy(&sysBlock, rawSysBlock, sizeof(SystemBlock));
-        GeneralHeader generalBlock;
-        generalBlock.TombStone = false;
-        generalBlock.BlockType = Blank;
-        generalBlock.BlockId = sysBlock.PhysicalBlockCount+1;
-        generalBlock.PreviousBlockId = sysBlock.LastEmptyBlockId;
-
-        sysBlock.PhysicalBlockCount+=1;
-        memcpy(rawSysBlock, &sysBlock, sizeof(SystemBlock));
-        char charBlock[sizeof(GeneralHeader)];
-        memcpy(charBlock, &generalBlock, sizeof(GeneralHeader));
-
-        writeData(generalBlock.BlockId*defaultBlockSize, charBlock, sizeof(GeneralHeader));
-        writeData(0, rawSysBlock, sizeof(SystemBlock));
+        return 0;
     }
 
+    //Gadiel
     long TableSpace::addNewBlock()
     {
         char * rawSysBlock = GetSystemBlock();
@@ -215,7 +203,7 @@
         memcpy(&genBlock, rawPreviousGenBlock, sizeof(GeneralHeader));
         if(genBlock.BlockType!=TableMetadata)
         {
-            return NULL;
+            return 0;
         }
 
         if(genBlock.NextBlockId==0)
