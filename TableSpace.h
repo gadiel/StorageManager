@@ -19,7 +19,12 @@ class TableSpace
         long addNewBlock(long id);
         long writeTableMetadata();
         long CreateNewTable(TableMetadataHeader tableMetadata);
-        long getLastTableMetadataBlockId(long BlockID);
+        long getLastTableMetadataBlockId();
+
+        //Alex
+        long CreateMetadataTable(char name[256]);
+        bool CreateMetadataField(long blockId, char *metadataField);
+        //Alex
 		TableSpace();
 		~TableSpace();
 	private:
@@ -33,4 +38,8 @@ class TableSpace
 		void InitializeDatabaseFile(std::ios_base::openmode openmode);
         void WriteBlock(long dir, char * blockData);
         void writeData(long dir, char * data, int size);
+        //Alex
+        void CreateMetadataTableHeader(long BlockId,TableMetadataHeader header);
+        void UpdateGeneralHeader(long blockId,GeneralHeader header);
+        //Alex
 };
