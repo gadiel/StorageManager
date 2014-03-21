@@ -16,7 +16,6 @@ class TableSpace
         long getNextFreeBlockAndUseIt();
         long addNewBlock();
         long addNewBlock(long id);
-        long writeTableMetadata();
         long CreateNewTable(TableMetadataHeader tableMetadata);
         long getLastTableMetadataBlockId();
 
