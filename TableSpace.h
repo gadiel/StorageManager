@@ -16,12 +16,18 @@ class TableSpace
         long getNextFreeBlockAndUseIt();
         long addNewBlock();
         long addNewBlock(long id);
-        long CreateNewTable(TableMetadataHeader tableMetadata);
         long getLastTableMetadataBlockId();
 
         //Alex
         long CreateMetadataTable(char name[256]);
         bool CreateMetadataField(long blockId, char *metadataField);
+        char* GetMetadataField(long BlockId);
+
+        bool CreateMetadataExtensionHeader(long blockId);
+        bool UpdateMetadataExtensionHeader(long blockId,TableMetadataExtensionHeader header);
+        char* GetMetadataExtensionHeader(long blockId);
+        bool UpdateTableMetadataHeader(long blockId,TableMetadataHeader header);
+
         //Alex
 
         //Wendy
@@ -45,5 +51,6 @@ class TableSpace
         //Alex
         void CreateMetadataTableHeader(long BlockId,TableMetadataHeader header);
         void UpdateGeneralHeader(long blockId,GeneralHeader header);
+        bool CreateFieldOnMetadataExtensionBlock(long blockId,char*MetadataField);
         //Alex
 };

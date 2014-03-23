@@ -69,6 +69,21 @@ int main()
     cout << "Table Name: " <<  header.TableName;
     printf("Last table created: %d \n", lastId);
 
+    MetadataField field;
+    field.FieldName[0]='N';
+    field.FieldName[1]='a';
+    field.FieldName[2]='m';
+    field.FieldName[3]='e';
+    field.FieldType= VARCHAR;
+    field.IsDeleted=false;
+    field.Precision=20;
+    field.IsIdentity=true;
+    field.IsNull=false;
+    field.IsPrimaryKey=false;
+
+    for(int x=0;x<40;x++){
+        tbspace.CreateMetadataField(lastId,(char*)&field);
+    }
 
     return 0;
 }
