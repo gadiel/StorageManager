@@ -5,10 +5,11 @@ enum BlockTypes
 	Blank, Data, TableMetadata, TableMetadataExtension, VariableData
 };
 
-struct DataBlock
+struct DataBlockHeader
 {
-	unsigned int RowCount;
-	unsigned int FreeSpace;
+    unsigned int LogicalRowsCount;
+    unsigned int PhysicalRowsCount;
+    unsigned int TrailSize;
 };
 
 struct GeneralHeader
@@ -16,8 +17,7 @@ struct GeneralHeader
     unsigned long BlockId;
     BlockTypes BlockType;
     unsigned long NextBlockId;
-    unsigned long PreviousBlockId;
-    bool TombStone;
+    unsigned long PreviousBlockId;    
 };
 
 struct SystemBlock
@@ -37,6 +37,7 @@ struct TableMetadataHeader
     unsigned long PhysicalColumnsCount;
     unsigned long Identity;
     unsigned long NextMetadataExtensionBlockId;
+    unsigned long FirstDataBlock;
     unsigned int FreeFields;
     unsigned int ColumnsCount;
 };
@@ -62,7 +63,13 @@ struct MetadataField
     char DefaultValue[256];
 };
 
-struct VariableData
+struct RowHeader{
+    bool TombStone;
+    //time Modified;
+};
+
+
+struct VariableData //VarCharBlocks
 {
 
 };

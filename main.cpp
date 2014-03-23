@@ -80,6 +80,9 @@ int main()
     field.IsIdentity=true;
     field.IsNull=false;
     field.IsPrimaryKey=false;
+    for(int i=0;i<25;i++){
+        tbspace.AddNewRecord(1,(char*)"1 Hello WORLD MYMYMY BABY ",300);
+    }
 
     for(int x=0;x<1000000;x++){
         if(x==3)
