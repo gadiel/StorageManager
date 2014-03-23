@@ -21,7 +21,7 @@ class TableSpace
         //Alex
         long CreateMetadataTable(char name[256]);
         bool CreateMetadataField(long blockId, char *metadataField);
-        char* GetMetadataField(long BlockId);
+        char* GetMetadataField(long blockId,long fieldPosition);
 
         bool CreateMetadataExtensionHeader(long blockId);
         bool UpdateMetadataExtensionHeader(long blockId,TableMetadataExtensionHeader header);
