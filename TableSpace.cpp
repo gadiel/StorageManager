@@ -123,13 +123,15 @@ using namespace std;
         memcpy(&systemBlock, rawData, sizeof(SystemBlock));
 
         GeneralHeader generalHeaderNewBlock;
-        generalHeaderNewBlock.NextBlockId = 0;
-        generalHeaderNewBlock.TombStone = false;
+        generalHeaderNewBlock.NextBlockId = 0;        
         generalHeaderNewBlock.BlockType = Blank;
         generalHeaderNewBlock.BlockId = systemBlock.PhysicalBlockCount+1;
         generalHeaderNewBlock.PreviousBlockId = systemBlock.LastEmptyBlockId;
+
         UpdateGeneralHeader(generalHeaderNewBlock.BlockId,generalHeaderNewBlock);
+
         cout << "New Block: " << generalHeaderNewBlock.PreviousBlockId << "<==" << generalHeaderNewBlock.BlockId << "==>" << generalHeaderNewBlock.NextBlockId << "\n";
+
         long offset=(generalHeaderNewBlock.BlockId*defaultBlockSize)+defaultBlockSize-1;
         rawData="\0";
         writeData(offset,rawData,1);
@@ -170,16 +172,11 @@ using namespace std;
         */
     }
 
-    long TableSpace::getLastTableMetadataBlockId()
-    {
-        return 0;
-    }
-
     //Alex
     long TableSpace::CreateMetadataTable(char name[256]){
 
         long id= getNextFreeBlockAndUseIt();
-        long lastId = getLastTableMetadataBlockId();
+        long lastId = GetLastBlockId(id);
 
         char * rawData= GetGeneralHeader(id);
         GeneralHeader newBlockGeneralHeader;
@@ -220,12 +217,12 @@ using namespace std;
     bool TableSpace::CreateMetadataField(long blockId, char *metadataField){
 
         TableMetadataHeader header;
-        do{
 
-        if(&header!=NULL)
-            blockId=header.NextMetadataExtensionBlockId;
-        char* tableMetadataHeader=GetTableMetadataHeader(blockId);
-        memcpy(&header, tableMetadataHeader, sizeof(TableMetadataHeader));
+        do{    
+            if(&header!=NULL)
+                blockId=header.NextMetadataExtensionBlockId;
+            char* tableMetadataHeader=GetTableMetadataHeader(blockId);
+            memcpy(&header, tableMetadataHeader, sizeof(TableMetadataHeader));
 
         }while(header.NextMetadataExtensionBlockId!=0);
 
@@ -259,7 +256,7 @@ using namespace std;
         return true;
     }
 
-    char * TableSpace::GetData(long positionInFile, long sizeToRead)
+    char* TableSpace::GetData(long positionInFile, long sizeToRead)
     {
         char buffer[sizeToRead];
         tableSpaceFile.seekg(positionInFile,std::ios::beg);
@@ -280,3 +277,169 @@ using namespace std;
           return true;
     }
 
+    bool TableSpace::AddNewRecord(long blockId, char *record, int recordSize){
+        //blockId es el TableMetadataBlockId
+        int offset=0;
+        char* headerChars=GetTableMetadataHeader(blockId);
+        TableMetadataHeader tableHeader;
+        memcpy(&tableHeader,headerChars,sizeof(TableMetadataHeader));
+
+        if(tableHeader.FirstDataBlock==0)
+        {
+            //Crear primer bloque de datos
+            long newDataBlockId= getNextFreeBlockAndUseIt();
+
+            //Actualizar GeneralHeader
+            char* generalHeaderChars= GetGeneralHeader(newDataBlockId);
+            GeneralHeader generalHeader;
+            memcpy(&generalHeader,generalHeaderChars,sizeof(GeneralHeader));
+
+            generalHeader.BlockType=Data;
+            generalHeader.PreviousBlockId=blockId;
+            generalHeader.NextBlockId=0;
+
+            UpdateGeneralHeader(newDataBlockId,generalHeader);
+
+            //Insertar DataBlockHeader
+            DataBlockHeader dataBlockHeader;
+            dataBlockHeader.LogicalRowsCount=1;
+            dataBlockHeader.PhysicalRowsCount=1;
+            dataBlockHeader.TrailSize=0;
+
+            InsertDataBlockHeader(newDataBlockId, (char*)&dataBlockHeader);
+
+            //Insertar RowHeader
+            RowHeader rowHeader;
+            rowHeader.TombStone=false;
+
+            offset=(newDataBlockId*defaultBlockSize)+sizeof(GeneralHeader)+sizeof(DataBlockHeader);
+            writeData(offset,(char*)&rowHeader,sizeof(RowHeader));
+
+            //Insertar registro
+            offset+=sizeof(RowHeader);
+            writeData(offset,record,recordSize);
+
+            //Actualizar TableMetadataHeader
+            tableHeader.FirstDataBlock=newDataBlockId;
+            CreateMetadataTableHeader(blockId,tableHeader);
+
+            return true;
+        }
+
+        //Buscar ultimo bloque de datos de la tabla
+        long lastDataBlockId=GetLastBlockId(tableHeader.FirstDataBlock);
+
+        char* dataBlockHeaderChars= GetDataBlockHeader(lastDataBlockId);
+        DataBlockHeader dataBlockHeader;
+        memcpy(&dataBlockHeader,dataBlockHeaderChars,sizeof(DataBlockHeader));
+
+        RowHeader rowHeader;
+        rowHeader.TombStone=false;
+
+        int wholeRecordSize=recordSize+sizeof(RowHeader);
+        int freeSpace=defaultBlockSize-(sizeof(GeneralHeader))-(sizeof(DataBlockHeader))-(dataBlockHeader.PhysicalRowsCount*wholeRecordSize);
+
+        if(freeSpace>wholeRecordSize)//Cabe el registro completo
+        {
+            //Insertar RowHeader
+            offset=(lastDataBlockId*defaultBlockSize)+sizeof(GeneralHeader)+(dataBlockHeader.PhysicalRowsCount*wholeRecordSize);
+            writeData(offset,(char*)&rowHeader,sizeof(RowHeader));
+
+            //Insertar Registro
+            offset=offset+sizeof(RowHeader);
+            writeData(offset,record,recordSize);
+
+            //Actualizar DataBlockHeader
+            dataBlockHeader.LogicalRowsCount++;
+            dataBlockHeader.PhysicalRowsCount++;
+            InsertDataBlockHeader(lastDataBlockId, (char*)&dataBlockHeader);
+
+            return true;
+        }
+        else{
+            if(freeSpace>=sizeof(RowHeader))//Solo se inserta el encabezado
+            {
+                //Insertar RowHeader
+                writeData(offset,(char*)&rowHeader,sizeof(RowHeader));
+
+                long newDataBlockId=CreateNewDataBlock(lastDataBlockId,recordSize);
+
+                //Insertar Registro
+                offset=(newDataBlockId*defaultBlockSize)+sizeof(GeneralHeader)+sizeof(DataBlockHeader);
+                writeData(offset,record,recordSize);
+
+                return true;
+            }
+            else//Se crea un nuevo bloque
+            {
+                long newDataBlockId=CreateNewDataBlock(lastDataBlockId,0);
+
+                dataBlockHeaderChars="\0";
+                dataBlockHeaderChars=GetDataBlockHeader(newDataBlockId);
+                memcpy(&dataBlockHeader,dataBlockHeaderChars,sizeof(DataBlockHeader));
+
+                offset=(newDataBlockId*defaultBlockSize)+sizeof(GeneralHeader)+sizeof(DataBlockHeader);
+                writeData(offset,(char*)&rowHeader,sizeof(RowHeader));
+
+                offset+=sizeof(RowHeader);
+                writeData(offset,record,recordSize);
+
+                return true;
+            }
+        }
+
+
+    }
+
+    char* TableSpace::GetDataBlockHeader(long blockId){
+        int posInicial= (blockId*defaultBlockSize)+(sizeof(GeneralHeader));
+        return GetData(posInicial,sizeof(DataBlockHeader));
+    }
+
+    bool TableSpace::InsertDataBlockHeader(long blockId, char *dataBlockHeader){
+         int offset=(blockId*defaultBlockSize)+sizeof(GeneralHeader);
+         writeData(offset,dataBlockHeader,sizeof(DataBlockHeader));
+         return true;
+    }
+
+    long TableSpace::GetLastBlockId(long blockId){
+        char* generalHeaderChars= GetGeneralHeader(blockId);
+        GeneralHeader generalHeader;
+        memcpy(&generalHeader,generalHeaderChars,sizeof(GeneralHeader));
+
+        if(generalHeader.NextBlockId==0)
+            return blockId;
+        return GetLastBlockId(generalHeader.NextBlockId);
+    }
+
+    long TableSpace::CreateNewDataBlock(long lastDataBlockId, int trailSize){
+        //Crear nuevo DataBlock
+        long newDataBlockId= getNextFreeBlockAndUseIt();
+
+        //Obtener GeneralHeader del nuevo bloque de Datos y actualizarlo
+        char* generalHeaderChars= GetGeneralHeader(lastDataBlockId);
+        GeneralHeader generalHeader;
+        memcpy(&generalHeader,generalHeaderChars,sizeof(GeneralHeader));
+
+        generalHeader.PreviousBlockId=lastDataBlockId;
+        generalHeader.NextBlockId=0;
+        generalHeader.BlockType=Data;
+
+        UpdateGeneralHeader(newDataBlockId,generalHeader);
+
+        //Insertar DataBlockHeader
+        DataBlockHeader newHeader;
+        newHeader.LogicalRowsCount=1;
+        newHeader.PhysicalRowsCount=1;
+        newHeader.TrailSize=trailSize;
+
+        InsertDataBlockHeader(newDataBlockId,(char*)&newHeader);
+
+        //Obtener GeneralHeader del ultimo bloque de Datos y actualizarlo
+        generalHeaderChars="\0";
+        generalHeaderChars= GetGeneralHeader(newDataBlockId);
+        memcpy(&generalHeader,generalHeaderChars,sizeof(GeneralHeader));
+        generalHeader.NextBlockId=newDataBlockId;
+
+        UpdateGeneralHeader(lastDataBlockId,generalHeader);
+    }

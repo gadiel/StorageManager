@@ -69,6 +69,9 @@ int main()
     cout << "Table Name: " <<  header.TableName;
     printf("Last table created: %d \n", lastId);
 
+    for(int i=0;i<25;i++){
+        tbspace.AddNewRecord(1,(char*)"1 Hello WORLD MYMYMY BABY ",300);
+    }
 
     return 0;
 }
