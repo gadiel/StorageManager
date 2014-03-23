@@ -73,7 +73,7 @@ using namespace std;
 	{
         CreateSystemBlock(DatabaseName);
 
-        for(int i=1;i<=10;i++)
+        for(int i=1;i<=2;i++)
         {
             addNewBlock();
         }
@@ -107,6 +107,11 @@ using namespace std;
         GeneralHeader gh;
         memcpy(&gh, rawData, sizeof(GeneralHeader));
 
+        if(gh.NextBlockId==0){
+            gh.NextBlockId=addNewBlock();
+            rawData = GetData(0,sizeof(SystemBlock));
+            memcpy(&sb, rawData, sizeof(SystemBlock));
+        }
         sb.FirstEmptyBlockId = gh.NextBlockId;
         memcpy(rawData, &sb, sizeof(SystemBlock));
 
@@ -129,7 +134,7 @@ using namespace std;
         generalHeaderNewBlock.BlockId = systemBlock.PhysicalBlockCount+1;
         generalHeaderNewBlock.PreviousBlockId = systemBlock.LastEmptyBlockId;
         UpdateGeneralHeader(generalHeaderNewBlock.BlockId,generalHeaderNewBlock);
-        cout << "New Block: " << generalHeaderNewBlock.PreviousBlockId << "<==" << generalHeaderNewBlock.BlockId << "==>" << generalHeaderNewBlock.NextBlockId << "\n";
+        //cout << "New Block: " << generalHeaderNewBlock.PreviousBlockId << "<==" << generalHeaderNewBlock.BlockId << "==>" << generalHeaderNewBlock.NextBlockId << "\n";
         long offset=(generalHeaderNewBlock.BlockId*defaultBlockSize)+defaultBlockSize-1;
         rawData="\0";
         writeData(offset,rawData,1);
@@ -140,7 +145,7 @@ using namespace std;
             memcpy(&generalHeaderLastBlock, rawData, sizeof(GeneralHeader));
             generalHeaderLastBlock.NextBlockId = generalHeaderNewBlock.BlockId;
             UpdateGeneralHeader(generalHeaderLastBlock.BlockId,generalHeaderLastBlock);
-            cout<< "Last Block: " << generalHeaderLastBlock.PreviousBlockId << "<==" << generalHeaderLastBlock.BlockId << "==>" << generalHeaderLastBlock.NextBlockId << "\n";
+            //cout<< "Last Block: " << generalHeaderLastBlock.PreviousBlockId << "<==" << generalHeaderLastBlock.BlockId << "==>" << generalHeaderLastBlock.NextBlockId << "\n";
         }
 
         if(systemBlock.LastEmptyBlockId==0)
@@ -149,6 +154,7 @@ using namespace std;
         systemBlock.PhysicalBlockCount+=1;
         systemBlock.LastEmptyBlockId = generalHeaderNewBlock.BlockId;
         writeData(0,(char*)&systemBlock,sizeof(SystemBlock));
+        return generalHeaderNewBlock.BlockId;
     }
 
     char * TableSpace::GetGeneralHeader(long blockId)
@@ -217,35 +223,127 @@ using namespace std;
         writeData(offset,(char*)&header,sizeof(GeneralHeader));
     }
 
+    bool TableSpace::CreateFieldOnMetadataExtensionBlock(long blockId, char * metadataField)
+    {
+        TableMetadataExtensionHeader header;
+        char* rawData=GetMetadataExtensionHeader(blockId);
+        memcpy(&header, rawData, sizeof(TableMetadataExtensionHeader));
+
+        long offset=defaultBlockSize*blockId+sizeof(GeneralHeader)+sizeof(TableMetadataExtensionHeader)+(sizeof(MetadataField)*header.PhysicalColumnsCount);
+
+        header.FreeFields--;
+        header.LogicalColumnsCount++;
+        header.PhysicalColumnsCount++;
+        //cout << "Escribiendo campo en Bloque:"<<blockId<<" Espacio:"<<header.PhysicalColumnsCount<<"\n";
+        writeData(offset,metadataField,sizeof(MetadataField));
+        UpdateMetadataExtensionHeader(blockId,header);
+    }
+
     bool TableSpace::CreateMetadataField(long blockId, char *metadataField){
 
         TableMetadataHeader header;
-        do{
+        char* rawData=GetTableMetadataHeader(blockId);
+        memcpy(&header, rawData, sizeof(TableMetadataHeader));
 
-        if(&header!=NULL)
-            blockId=header.NextMetadataExtensionBlockId;
-        char* tableMetadataHeader=GetTableMetadataHeader(blockId);
-        memcpy(&header, tableMetadataHeader, sizeof(TableMetadataHeader));
+        if(header.NextMetadataExtensionBlockId!=0){
+            TableMetadataExtensionHeader meh;
+            long lastBlockId=header.NextMetadataExtensionBlockId;
+            long nextBlockId=header.NextMetadataExtensionBlockId;
+            do{
+                char* rawData=GetMetadataExtensionHeader(nextBlockId);
+                memcpy(&meh, rawData, sizeof(TableMetadataExtensionHeader));
+                lastBlockId=nextBlockId;
+                nextBlockId=meh.Next;
+            }
+            while(nextBlockId!=0);
+            if(meh.FreeFields==0){
+                //Crear nuevo bloque de extension
+                long newblockid=getNextFreeBlockAndUseIt();
+                GeneralHeader newgh;
+                char* rawData=GetGeneralHeader(newblockid);
+                memcpy(&newgh, rawData, sizeof(GeneralHeader));
+                newgh.BlockType=TableMetadataExtension;
+                newgh.NextBlockId=0;
+                newgh.PreviousBlockId=lastBlockId;
 
-        }while(header.NextMetadataExtensionBlockId!=0);
+                meh.Next=newblockid;
 
-        if(header.FreeFields>0)
-        {
-            long offset=defaultBlockSize*blockId+sizeof(GeneralHeader)+sizeof(TableMetadata)+(sizeof(MetadataField)*header.PhysicalColumnsCount);
-            writeData(offset,metadataField,sizeof(MetadataField));
-
-            header.FreeFields--;
-            header.LogicalColumnsCount++;
-            header.PhysicalColumnsCount++;
-            header.Identity++;
-
-            offset=(defaultBlockSize*blockId)+sizeof(GeneralHeader);
-            writeData(offset,(char*)&header,sizeof(TableMetadataHeader));
-            return true;
-        }else
-        {
-            //Crear Extension de Metadata
+                UpdateMetadataExtensionHeader(lastBlockId,meh);
+                UpdateGeneralHeader(newblockid,newgh);
+                CreateMetadataExtensionHeader(newblockid);
+                CreateFieldOnMetadataExtensionBlock(newblockid,metadataField);
+            }
+            else
+            {
+                CreateFieldOnMetadataExtensionBlock(lastBlockId,metadataField);
+            }
         }
+        else if(header.FreeFields==0){
+            //cout <<"Creando bloque de extension de metada"<<"\n";
+            //cout <<"Creando campo en bloque de extension"<<"\n";
+            long newblockid=getNextFreeBlockAndUseIt();
+            char* rawData=GetGeneralHeader(newblockid);
+            GeneralHeader newgh;
+            memcpy(&newgh, rawData, sizeof(GeneralHeader));
+            newgh.BlockType=TableMetadataExtension;
+            newgh.NextBlockId=0;
+            newgh.PreviousBlockId=blockId;
+            UpdateGeneralHeader(newblockid,newgh);
+            CreateMetadataExtensionHeader(newblockid);
+
+            rawData=GetTableMetadataHeader(blockId);
+            TableMetadataHeader lastgh;
+            memcpy(&lastgh, rawData, sizeof(TableMetadataHeader));
+            lastgh.NextMetadataExtensionBlockId=newblockid;
+            UpdateTableMetadataHeader(blockId,lastgh);
+
+            return CreateFieldOnMetadataExtensionBlock(newblockid,metadataField);
+        }else{
+            //cout <<"Creando campo en bloque principal"<<"\n";
+            char* rawData=GetTableMetadataHeader(blockId);
+            TableMetadataHeader tm;
+            memcpy(&tm, rawData, sizeof(TableMetadataHeader));
+            long offset= blockId*defaultBlockSize+sizeof(GeneralHeader)+sizeof(TableMetadataHeader)+(sizeof(MetadataField)*tm.PhysicalColumnsCount);
+
+            tm.FreeFields--;
+            tm.LogicalColumnsCount++;
+            tm.PhysicalColumnsCount++;
+            tm.Identity++;
+
+            writeData(offset,metadataField,sizeof(MetadataField));
+            UpdateTableMetadataHeader(blockId,tm);
+
+        }
+    }
+
+    bool TableSpace::CreateMetadataExtensionHeader(long blockId)
+    {
+        TableMetadataExtensionHeader header;
+        header.FreeFields=(defaultBlockSize-sizeof(GeneralHeader)-sizeof(TableMetadataExtensionHeader))/sizeof(MetadataField);
+        header.LogicalColumnsCount=0;
+        header.PhysicalColumnsCount=0;
+        header.Next=0;
+        long offset=defaultBlockSize*blockId+sizeof(GeneralHeader);
+        writeData(offset,(char*)&header,sizeof(TableMetadataExtensionHeader));
+    }
+
+    bool TableSpace::UpdateMetadataExtensionHeader(long blockId,TableMetadataExtensionHeader header)
+    {
+        long offset=defaultBlockSize*blockId+sizeof(GeneralHeader);
+        writeData(offset,(char*)&header,sizeof(TableMetadataExtensionHeader));
+    }
+
+    char *TableSpace::GetMetadataExtensionHeader(long blockId)
+    {
+        long offset=defaultBlockSize*blockId+sizeof(GeneralHeader);
+        char* rawData=GetData(offset,sizeof(TableMetadataExtensionHeader));
+        return rawData;
+    }
+
+    bool TableSpace::UpdateTableMetadataHeader(long blockId,TableMetadataHeader header)
+    {
+        long offset=defaultBlockSize*blockId+sizeof(GeneralHeader);
+        writeData(offset,(char*)&header,sizeof(TableMetadataHeader));
     }
 
 

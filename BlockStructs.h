@@ -32,19 +32,20 @@ struct SystemBlock
 
 struct TableMetadataHeader
 {
-	char TableName[256];
+    char TableName[256];
     unsigned int LogicalColumnsCount;
     unsigned long PhysicalColumnsCount;
     unsigned long Identity;
     unsigned long NextMetadataExtensionBlockId;
     unsigned int FreeFields;
+    unsigned int ColumnsCount;
 };
 
-struct TableMetadataExtBlock
+struct TableMetadataExtensionHeader
 {
     unsigned int LogicalColumnsCount;
     unsigned long PhysicalColumnsCount;
-    unsigned long ParentMetadataBlockId;
+    unsigned long Next;
     unsigned int FreeFields;
 };
 
