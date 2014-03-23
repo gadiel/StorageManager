@@ -73,7 +73,7 @@ using namespace std;
 	{
         CreateSystemBlock(DatabaseName);
 
-        for(int i=1;i<=2;i++)
+        for(int i=1;i<=defaultBlockCount;i++)
         {
             addNewBlock();
         }
@@ -201,6 +201,7 @@ using namespace std;
         TableMetadataHeader newBlockMetadataHeader= TableMetadataHeader();
         strcpy(newBlockMetadataHeader.TableName,name);
         newBlockMetadataHeader.FreeFields= (defaultBlockSize-sizeof(GeneralHeader)-sizeof(TableMetadataHeader))/sizeof(MetadataField);
+        newBlockMetadataHeader.FreeFields= 2;
         newBlockMetadataHeader.LogicalColumnsCount=0;
         newBlockMetadataHeader.PhysicalColumnsCount=0;
         newBlockMetadataHeader.NextMetadataExtensionBlockId=0;
@@ -225,12 +226,13 @@ using namespace std;
 
     bool TableSpace::CreateFieldOnMetadataExtensionBlock(long blockId, char * metadataField)
     {
+        MetadataField field;
+        memcpy(&field, metadataField, sizeof(MetadataField));
         TableMetadataExtensionHeader header;
         char* rawData=GetMetadataExtensionHeader(blockId);
         memcpy(&header, rawData, sizeof(TableMetadataExtensionHeader));
 
         long offset=defaultBlockSize*blockId+sizeof(GeneralHeader)+sizeof(TableMetadataExtensionHeader)+(sizeof(MetadataField)*header.PhysicalColumnsCount);
-
         header.FreeFields--;
         header.LogicalColumnsCount++;
         header.PhysicalColumnsCount++;
@@ -240,7 +242,6 @@ using namespace std;
     }
 
     bool TableSpace::CreateMetadataField(long blockId, char *metadataField){
-
         TableMetadataHeader header;
         char* rawData=GetTableMetadataHeader(blockId);
         memcpy(&header, rawData, sizeof(TableMetadataHeader));
@@ -316,10 +317,71 @@ using namespace std;
         }
     }
 
+    char *TableSpace::GetMetadataField(long blockId, long fieldPosition)
+    {
+        char* rawData=GetTableMetadataHeader(blockId);
+        TableMetadataHeader header;
+        memcpy(&header, rawData, sizeof(TableMetadataHeader));
+
+        if(fieldPosition<=header.LogicalColumnsCount){
+            long counter=0;
+            //Buscar el campo dentro del bloque principal
+            for(int x=0;x<header.PhysicalColumnsCount;x++){
+                long offset=blockId*defaultBlockSize+sizeof(GeneralHeader)+sizeof(TableMetadataHeader)+(x*sizeof(MetadataField));
+                rawData=GetData(offset,sizeof(MetadataField));
+                MetadataField mf;
+                memcpy(&mf,rawData,sizeof(MetadataField));
+                if(!mf.IsDeleted){
+                    counter++;
+                    if(counter==fieldPosition){
+                        return rawData;
+                    }
+                }
+            }
+        }else
+        {
+            //Restar las columnas previas
+            fieldPosition-=header.LogicalColumnsCount;
+            //Buscar el campo entre los bloques de metadata extension
+
+            long counter=0;
+            blockId=header.NextMetadataExtensionBlockId;
+            long lastBlockId=blockId;
+            do{
+                rawData=GetMetadataExtensionHeader(blockId);
+                TableMetadataExtensionHeader meh;
+                memcpy(&meh,rawData,sizeof(TableMetadataExtensionHeader));
+                lastBlockId=meh.Next;
+
+                if(fieldPosition<=meh.LogicalColumnsCount){
+                    for(int x=0;x<meh.PhysicalColumnsCount;x++){
+                        long offset=blockId*defaultBlockSize+sizeof(GeneralHeader)+sizeof(TableMetadataExtensionHeader)+(x*sizeof(MetadataField));
+                        rawData=GetData(offset,sizeof(MetadataField));
+                        MetadataField mf;
+                        memcpy(&mf,rawData,sizeof(MetadataField));
+                        if(!mf.IsDeleted){
+                            counter++;
+                            if(counter==fieldPosition){
+                                return rawData;
+                            }
+                        }
+                    }
+                }
+
+                if(lastBlockId!=0)
+                    blockId=lastBlockId;
+                fieldPosition-=meh.LogicalColumnsCount;
+            }while (lastBlockId!=0);
+
+
+        }
+    }
+
     bool TableSpace::CreateMetadataExtensionHeader(long blockId)
     {
         TableMetadataExtensionHeader header;
         header.FreeFields=(defaultBlockSize-sizeof(GeneralHeader)-sizeof(TableMetadataExtensionHeader))/sizeof(MetadataField);
+        header.FreeFields= 2;
         header.LogicalColumnsCount=0;
         header.PhysicalColumnsCount=0;
         header.Next=0;

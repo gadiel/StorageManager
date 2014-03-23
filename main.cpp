@@ -81,9 +81,22 @@ int main()
     field.IsNull=false;
     field.IsPrimaryKey=false;
 
-    for(int x=0;x<40;x++){
+    for(int x=0;x<1000000;x++){
+        if(x==3)
+            field.FieldName[3]='m';
         tbspace.CreateMetadataField(lastId,(char*)&field);
     }
+
+    /*
+    for(int x=1;x<=1000000;x++){
+        rawData=tbspace.GetMetadataField(lastId,x);
+        MetadataField f;
+        memcpy(&f, rawData, sizeof(MetadataField));
+        cout<<x<<" Field Name:"<<f.FieldName<<"\n";
+    }
+    */
+
+
 
     return 0;
 }
