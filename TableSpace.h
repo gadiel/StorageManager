@@ -16,7 +16,6 @@ class TableSpace
         long getNextFreeBlockAndUseIt();
         long addNewBlock();
         long addNewBlock(long id);
-        long getLastTableMetadataBlockId();
 
         //Alex
         long CreateMetadataTable(char name[256]);
@@ -34,12 +33,12 @@ class TableSpace
         bool UpdateSystemBlock(char* newSystemBlock);
         char* GetTableMetadataHeader(long blockId);
         bool UpdateMetadataField(long blockId, long fieldId,char* newMetadataField);
+        bool AddNewRecord(long blockId, char *record, int recordSize);
 
 		TableSpace();
 		~TableSpace();
 	private:
-		std::fstream tableSpaceFile;
-		char * GetData(long positionInFile, long sizeToRead);
+        std::fstream tableSpaceFile;
 		void CreateDatabaseFile(char * fileName);
         char * GetGeneralHeader(long blockId);
 		void VerifyTableSpaceFile();
@@ -53,4 +52,13 @@ class TableSpace
         void UpdateGeneralHeader(long blockId,GeneralHeader header);
         bool CreateFieldOnMetadataExtensionBlock(long blockId,char*MetadataField);
         //Alex
+
+        //Wendy
+        char* GetData(long positionInFile, long sizeToRead);
+        char* GetDataBlockHeader(long blockId);
+        bool InsertDataBlockHeader(long blockId, char* dataBlockHeader);
+        long GetLastBlockId(long blockId);
+        long CreateNewDataBlock(long lastDataBlockId, int trailSize);//Retorna el id del nuevo bloque creado
+        //char* ValidateMetadataFieldTypes(long blockId,char* newRecord, int recordSize);
+
 };
