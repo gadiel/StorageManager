@@ -38,7 +38,7 @@ class TableSpace
 		TableSpace();
 		~TableSpace();
 	private:
-
+        std::fstream tableSpaceFile;
 		void CreateDatabaseFile(char * fileName);
         char * GetGeneralHeader(long blockId);
 		void VerifyTableSpaceFile();
@@ -59,4 +59,6 @@ class TableSpace
         bool InsertDataBlockHeader(long blockId, char* dataBlockHeader);
         long GetLastBlockId(long blockId);
         long CreateNewDataBlock(long lastDataBlockId, int trailSize);//Retorna el id del nuevo bloque creado
+        //char* ValidateMetadataFieldTypes(long blockId,char* newRecord, int recordSize);
+
 };

@@ -10,4 +10,5 @@
 #include <string.h>
 #include <string>
 #include <iostream>
+#include <stdlib.h>
 // TODO: mencionar aquí los encabezados adicionales que el programa necesita

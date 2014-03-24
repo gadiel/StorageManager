@@ -69,26 +69,60 @@ int main()
     cout << "Table Name: " <<  header.TableName;
     printf("Last table created: %d \n", lastId);
 
+    int recordSize=0;
+
     MetadataField field;
+
+    field.FieldName[0]='I';
+    field.FieldName[1]='d';
+    field.FieldType= INT;
+    field.IsDeleted=false;
+    field.Precision=0;
+    field.IsIdentity=true;
+    field.IsNull=false;
+    field.IsPrimaryKey=false;
+    recordSize+=sizeof(int);
+    tbspace.CreateMetadataField(lastId,(char*)&field);
+
     field.FieldName[0]='N';
     field.FieldName[1]='a';
     field.FieldName[2]='m';
     field.FieldName[3]='e';
-    field.FieldType= VARCHAR;
+    field.FieldType= CHAR;
     field.IsDeleted=false;
     field.Precision=20;
-    field.IsIdentity=true;
-    field.IsNull=false;
+    field.IsIdentity=false;
+    field.IsNull=true;
     field.IsPrimaryKey=false;
-    for(int i=0;i<25;i++){
-        tbspace.AddNewRecord(1,(char*)"1 Hello WORLD MYMYMY BABY ",300);
-    }
+    recordSize+=field.Precision;
+    tbspace.CreateMetadataField(lastId,(char*)&field);
 
-    for(int x=0;x<1000000;x++){
-        if(x==3)
-            field.FieldName[3]='m';
-        tbspace.CreateMetadataField(lastId,(char*)&field);
-    }
+    field.FieldName[0]='P';
+    field.FieldName[1]='r';
+    field.FieldName[2]='i';
+    field.FieldName[3]='c';
+    field.FieldName[4]='e';
+    field.FieldType= DECIMAL;
+    field.IsDeleted=false;
+    field.Precision=2;
+    field.IsIdentity=false;
+    field.IsNull=true;
+    field.IsPrimaryKey=false;
+    recordSize+=sizeof(double);
+    tbspace.CreateMetadataField(lastId,(char*)&field);
+
+    tbspace.AddNewRecord(lastId,"0\045.89",recordSize);
+    tbspace.AddNewRecord(lastId,"0Coco89.65",recordSize);
+
+//    for(int x=0;x<1000000;x++){
+//        if(x==3)
+//            field.FieldName[3]='m';
+//        tbspace.CreateMetadataField(lastId,(char*)&field);
+//    }
+
+//    for(int i=0;i<25;i++){
+//        tbspace.AddNewRecord(1,(char*)"1 Hello WORLD MYMYMY BABY ",300);
+//    }
 
     /*
     for(int x=1;x<=1000000;x++){

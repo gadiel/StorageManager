@@ -307,7 +307,7 @@ using namespace std;
             tm.FreeFields--;
             tm.LogicalColumnsCount++;
             tm.PhysicalColumnsCount++;
-            tm.Identity++;
+            tm.ColumnsCount++;
 
             writeData(offset,metadataField,sizeof(MetadataField));
             UpdateTableMetadataHeader(blockId,tm);
@@ -417,7 +417,6 @@ using namespace std;
         return true;
     }
 
-
     char* TableSpace::GetData(long positionInFile, long sizeToRead)
     {
         char buffer[sizeToRead];
@@ -442,9 +441,63 @@ using namespace std;
     bool TableSpace::AddNewRecord(long blockId, char *record, int recordSize){
         //blockId es el TableMetadataBlockId
         int offset=0;
+        int bytesCount=0;
+
         char* headerChars=GetTableMetadataHeader(blockId);
         TableMetadataHeader tableHeader;
         memcpy(&tableHeader,headerChars,sizeof(TableMetadataHeader));
+
+//        int columnsCount=tableHeader.ColumnsCount;
+
+//        for(int i=1;i<=columnsCount;i++){
+//            char * mdFieldChars=GetMetadataField(blockId,i);
+//            MetadataField mdField;
+//            memcpy(&mdField,mdFieldChars,sizeof(MetadataField));
+
+//            switch(mdField.FieldType){
+//            case INT:
+//                if(mdField.IsNull){
+//                    bytesCount-=sizeof("~");
+//                }
+//                else if(mdField.IsIdentity){
+//                    int lastId=tableHeader.Identity;
+//                    tableHeader.Identity++;
+
+//                    UpdateTableMetadataHeader(blockId,tableHeader);
+//                }
+//                bytesCount+=sizeof(int);
+//                break;
+//            case DECIMAL:
+//                if(mdField.IsNull){
+//                    bytesCount-=sizeof("~");
+//                }
+//                else{
+//                    bytesCount+=sizeof(double);
+//                }
+//                break;
+//            case  CHAR:
+//                if(mdField.IsNull){
+//                    bytesCount-=sizeof("~");
+//                }
+//                else{
+//                    bytesCount+=mdField.Precision;
+//                }
+
+//                break;
+//            case VARCHAR:
+
+//                break;
+//            case BOOLEAN:
+//                if(mdField.IsNull){
+//                    bytesCount-=sizeof("~");
+//                }
+//                else{
+//                    bytesCount+=sizeof(double);
+//                }
+//                break;
+//            default: break;
+//            }
+//        }
 
         if(tableHeader.FirstDataBlock==0)
         {
@@ -549,9 +602,8 @@ using namespace std;
                 return true;
             }
         }
-
-
     }
+
 
     char* TableSpace::GetDataBlockHeader(long blockId){
         int posInicial= (blockId*defaultBlockSize)+(sizeof(GeneralHeader));
@@ -559,9 +611,9 @@ using namespace std;
     }
 
     bool TableSpace::InsertDataBlockHeader(long blockId, char *dataBlockHeader){
-         int offset=(blockId*defaultBlockSize)+sizeof(GeneralHeader);
-         writeData(offset,dataBlockHeader,sizeof(DataBlockHeader));
-         return true;
+        int offset=(blockId*defaultBlockSize)+sizeof(GeneralHeader);
+        writeData(offset,dataBlockHeader,sizeof(DataBlockHeader));
+        return true;
     }
 
     long TableSpace::GetLastBlockId(long blockId){
@@ -605,3 +657,4 @@ using namespace std;
 
         UpdateGeneralHeader(lastDataBlockId,generalHeader);
     }
+

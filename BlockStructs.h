@@ -52,7 +52,7 @@ struct TableMetadataExtensionHeader
 
 struct MetadataField
 {
-    char FieldName [20];
+    char FieldName[20];
     DataType FieldType;
     int Precision;
     int Scale;
