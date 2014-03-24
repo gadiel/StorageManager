@@ -27,6 +27,10 @@ class TableSpace
         char* GetMetadataExtensionHeader(long blockId);
         bool UpdateTableMetadataHeader(long blockId,TableMetadataHeader header);
 
+        //#gadiel
+
+        char * getRecord(long blockId, long recordCount, long recordSize);
+
         //Alex
 
         //Wendy

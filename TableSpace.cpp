@@ -407,6 +407,9 @@ using namespace std;
     }
 
 
+
+
+
     //Alex
 
 
@@ -438,6 +441,24 @@ using namespace std;
           return true;
     }
 
+    char * TableSpace::getRecord(long blockId, long recordCount, long recordSize)
+    {
+        //esta función recibe de parámetro el id de la data, no el del metadata
+        char* dataBlockHeaderChars= GetDataBlockHeader(blockId);
+        DataBlockHeader dataBlockHeader;
+        memcpy(&dataBlockHeader,dataBlockHeaderChars,sizeof(DataBlockHeader));
+
+        if(dataBlockHeader.LogicalRowsCount<recordCount)
+        {
+            return NULL;
+        }
+
+        int wholeRecordSize=recordSize+sizeof(RowHeader);
+        int offset = (blockId*defaultBlockSize)+(sizeof(GeneralHeader))+(sizeof(DataBlockHeader))+(recordCount*wholeRecordSize);
+
+        return GetData(offset,wholeRecordSize);
+    }
+
     bool TableSpace::AddNewRecord(long blockId, char *record, int recordSize){
         //blockId es el TableMetadataBlockId
         int offset=0;
@@ -446,7 +467,7 @@ using namespace std;
         char* headerChars=GetTableMetadataHeader(blockId);
         TableMetadataHeader tableHeader;
         memcpy(&tableHeader,headerChars,sizeof(TableMetadataHeader));
-
+/*
 //        int columnsCount=tableHeader.ColumnsCount;
 
 //        for(int i=1;i<=columnsCount;i++){
@@ -497,7 +518,7 @@ using namespace std;
 //                break;
 //            default: break;
 //            }
-//        }
+//        }*/
 
         if(tableHeader.FirstDataBlock==0)
         {
